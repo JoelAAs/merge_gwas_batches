@@ -65,7 +65,7 @@ rule recode_vcf_per_chrom:
     run:
         input_pattern = re.sub("\\.bed", "", input[0])
         output_pattern = re.sub("\\.vcf", "", output[0])
-        cmd = f"{params.plink} --bfile {input_pattern} --mind 0.1 --chr {wildcards.chr} --recode vcf --out {output_pattern}"
+        cmd = f"{params.plink} --bfile {input_pattern} --chr {wildcards.chr} --recode vcf --out {output_pattern}"
         print(cmd)
         shell(cmd)
 
