@@ -1,15 +1,14 @@
 ---
 ################ INPUT ################
 datasets:
- - input/part_one
- - input/part_two
-
+  - LI-0148_130513_ResultReport_PLINK_PCF_TOP
+  - ME-0286_140916_PLINK_PCF_TOP
+  - MW6_120228_ICF_Plink_top
+  - OK-0958_160913_PLINK_PCF_TOP
 ################ RESOURCES ################
 dbsnp_map: data/dbsnp151_pos.map
 dbsnp_chr: data/dbsnp151_chr.map
 
-
 ################ SOFTWARE ################
 
 plink: /home/joel/PLINK/plink
-shapeit: /home/joel/Documents/GWAS/joined/bin/shapeit.v2.904.3.10.0-693.11.6.el7.x86_64/bin/shapeit

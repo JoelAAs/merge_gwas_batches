@@ -3,7 +3,7 @@ import os
 import re
 
 ################ CONFIGURATION ################
-chroms = list(range(1,23)) + ["x", "y"]
+chroms = list(range(1,23)) + ["X"]
 
 ################ FUNCTIONS ################
 def get_ref_input(wildcards):
@@ -33,8 +33,42 @@ def get_dup_input(wildcards):
 
 rule all:
     input:
-        #"results/merged.bed"
-        expand("run_folder/realign/{data}_chrom_{chr}.phased.haps", data = config["datasets"], chr=chroms)
+        "results/VCF/merged_all.vcf.gz"
+
+rule merge_chr:
+    input:
+        expand("results/VCF/merged_chr_{chr}.vcf.gz", chr=chroms)
+    output:
+        "results/VCF/merged_all.vcf.gz"
+    shell:
+        """
+        vcf-concat {input} | gzip -c > {output}
+        """
+
+rule sort_and_zip:
+    input:
+        "results/VCF/merged_chr_{chr}.vcf"
+    output:
+        "results/VCF/merged_chr_{chr}.vcf.gz"
+    shell:
+        """
+        vcf-sort {input} | bgzip -c > {output}
+        """
+
+rule recode_vcf_per_chrom:
+    params:
+        plink = config["plink"]
+    input:
+        "results/bed/merged.bed"
+    output:
+        "results/VCF/merged_chr_{chr}.vcf"
+    run:
+        input_pattern = re.sub("\\.bed", "", input[0])
+        output_pattern = re.sub("\\.vcf", "", output[0])
+        cmd = f"{params.plink} --bfile {input_pattern} --mind 0.1 --chr {wildcards.chr} --recode vcf --out {output_pattern}"
+        print(cmd)
+        shell(cmd)
+
 
 rule merge:
     """
@@ -44,89 +78,22 @@ rule merge:
     params:
         plink = config["plink"]
     input:
-        bed = expand("run_folder/dedup/{data}_full_flipped_dedup.bed", data = config["datasets"]),
-        fam = expand("run_folder/dedup/{data}_full_flipped_dedup.fam", data = config["datasets"]),
-        bim = expand("run_folder/dedup/{data}_full_flipped_dedup.bim", data = config["datasets"])
+        bed = expand("run_folder/dedup/{data}_dedup.bed", data = config["datasets"]),
+        fam = expand("run_folder/dedup/{data}_dedup.fam", data = config["datasets"]),
+        bim = expand("run_folder/dedup/{data}_dedup.bim", data = config["datasets"])
     output:
-        "results/merged.bed"
-    shell:
-        """
-        echo "hej"
-        """
-
-rule flip_join:
-    params:
-        plink = config["plink"]
-    input:
-        expand("run_folder/realign/{{data}}_chrom_{chr}_flipped.bed",  chr=chroms)
-    output:
-        "run_folder/realign/{data}_full_flipped.bed",
-    shell:
-        """
-        """
-
-rule flip:
-    """
-    Flip variants according to haplotype definitions
-    """
-    params:
-        plink = config["plink"]
-    input:
-        bed = "run_folder/splits/{data}_chrom_{chr}.bed",
-        bim = "run_folder/splits/{data}_chrom_{chr}.bim",
-        fam = "run_folder/splits/{data}_chrom_{chr}.fam",
-        haps = "run_folder/realign/{data}_chrom_{chr}.phased.haps",
-        sample = "run_folder/realign/{data}_chrom_{chr}.phased.sample"
-    output:
-        bed = "run_folder/realign/{data}_chrom_{chr}_flipped.bed",
-        fam = "run_folder/realign/{data}_chrom_{chr}_flipped.fam",
-        bim = "run_folder/realign/{data}_chrom_{chr}_flipped.bim"
+        "results/bed/merged.bed"
     run:
-        input_pattern = re.sub("\\.bed", "", input.bed)
-        output_pattern = re.sub("\\.bed", "", output.bed)
-        shell(f"{params.plink} --bfile {input_pattern} --flip  --make-bed --out {output_pattern}") #TODO: Psuedo 
+        list_file = "results/merge-list.txt"
+        with open(list_file, "w+") as f:
+            for plink_files in zip(*[input.bed[1:], input.bim[1:], input.fam[1:]]):
+                f.write("\t".join(plink_files) + "\n")
 
+        first_input = re.sub("\\.bed", "", input.bed[0])
+        output_pattern = re.sub("\\.bed", "", output[0])
+        cmd = f"{params.plink} --bfile {first_input} --merge-list {list_file} --make-bed --out {output_pattern}"
+        shell(cmd)
 
-rule realign_shapeit:
-    """
-    Get infered haplotype definitions supplied by dbsnp
-    """
-    params:
-        dbsnp_map = config["dbsnp_map"],
-        shapeit = config["shapeit"]
-    input:
-        bed = "run_folder/splits/{data}_chrom_{chr}.bed",
-        bim = "run_folder/splits/{data}_chrom_{chr}.bim",
-        fam = "run_folder/splits/{data}_chrom_{chr}.fam"
-    output:
-        haps = "run_folder/realign/{data}_chrom_{chr}.phased.haps",
-        sample = "run_folder/realign/{data}_chrom_{chr}.phased.sample"
-    shell:
-        """
-        {params.shapeit} -B {input.bed} {input.bim} {input.fam} \
-            -M {params.dbsnp_map} \
-            --output-max {output.haps} {output.sample} \
-            --thread 2
-        """
-
-rule split_per_chromosome:
-    """
-    """
-    params:
-        plink     = config["plink"]
-    input:
-        bam = "run_folder/dedup/{data}_dedup.bed",
-        bim = "run_folder/dedup/{data}_dedup.fam",
-        fam = "run_folder/dedup/{data}_dedup.bim"
-    output:
-        bam = expand("run_folder/splits/{{data}}_chrom_{chr}.bed", chr=chroms),
-        bim = expand("run_folder/splits/{{data}}_chrom_{chr}.bim", chr=chroms),
-        fam = expand("run_folder/splits/{{data}}_chrom_{chr}.fam", chr=chroms)
-    run:
-        input_pattern = re.sub("\\.bed", "", input.bam)
-        for chr in chroms:
-            output_pattern = f"run_folder/splits/{wildcards.data}_chrom_{chr}"
-            shell(f"{params.plink} --bfile {input_pattern} --chr {chr} --recode --make-bed --out {output_pattern}")
 
 rule remove_duplicate_name:
     """
@@ -135,10 +102,12 @@ rule remove_duplicate_name:
     input:
         mapped = "run_folder/mapped/{data}_mapped.bed"
     output:
-        filtered = "run_folder/filtered/{data}_no_prefix.bed"
+        bed = "run_folder/filtered/{data}_no_prefix.bed",
+        bim = "run_folder/filtered/{data}_no_prefix.bim",
+        fam = "run_folder/filtered/{data}_no_prefix.fam"
     shell:
         """
-        Rscript bin/remove_duplicates_prefix.R {input.mapped} {output.filtered}
+        Rscript bin/remove_duplicates_prefix.R {input.mapped} {output.bed}
         """
 
 rule remove_duplicates_position:
