@@ -6,9 +6,9 @@ datasets:
   - MW6_120228_ICF_Plink_top
   - OK-0958_160913_PLINK_PCF_TOP
 ################ RESOURCES ################
-dbsnp_map: data/dbsnp151_pos.map
-dbsnp_chr: data/dbsnp151_chr.map
-
+dbsnp_map: data/dbsnp138_pos.map
+dbsnp_chr: data/dbsnp138_chr.map
+fasta_ref: data/ucsc.hg19.fasta
 ################ SOFTWARE ################
 
 plink: /home/joel/PLINK/plink
