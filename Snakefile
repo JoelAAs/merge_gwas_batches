@@ -84,7 +84,7 @@ rule recode_vcf_per_chrom:
     run:
         input_pattern = re.sub("\\.bed", "", input[0])
         output_pattern = re.sub("\\.vcf", "", output[0])
-        cmd = f"{params.plink} --bfile {input_pattern} --chr {wildcards.chr} --recode vcf --out {output_pattern}"
+        cmd = f"plink1.9 --bfile {input_pattern} --chr {wildcards.chr} --recode vcf --out {output_pattern}"
         shell(cmd)
 
 rule merge:
@@ -95,70 +95,68 @@ rule merge:
     params:
         plink = config["plink"]
     input:
-        bed = expand("run_folder/dedup/{data}_dedup.bed", data = config["datasets"]),
-        fam = expand("run_folder/dedup/{data}_dedup.fam", data = config["datasets"]),
-        bim = expand("run_folder/dedup/{data}_dedup.bim", data = config["datasets"])
+        bed = expand("run_folder/mapped/{data}_mapped.bed", data = config["datasets"]),
+        fam = expand("run_folder/mapped/{data}_mapped.fam", data = config["datasets"]),
+        bim = expand("run_folder/mapped/{data}_mapped.bim", data = config["datasets"])
     output:
         "results/bed/merged.bed"
     run:
         list_file = "results/merge-list.txt"
         with open(list_file, "w+") as f:
-            for plink_files in zip(*[input.bed[1:], input.bim[1:], input.fam[1:]]):
+            for plink_files in zip(*[input.bed, input.bim, input.fam]):
                 f.write("\t".join(plink_files) + "\n")
 
-        first_input = re.sub("\\.bed", "", input.bed[0])
         output_pattern = re.sub("\\.bed", "", output[0])
-        cmd = f"{params.plink} --bfile {first_input} --merge-list {list_file} --make-bed --out {output_pattern}"
+        cmd = f"plink1.9 --merge-list {list_file} --make-bed --out {output_pattern}"
         shell(cmd)
 
-rule remove_duplicate_name:
-    """
-    Remove prefix (exm- etc) and conflicting ids within individual files
-    """
-    input:
-        mapped = "run_folder/mapped/{data}_mapped.bed"
-    output:
-        bed = "run_folder/filtered/{data}_no_prefix.bed",
-        bim = "run_folder/filtered/{data}_no_prefix.bim",
-        fam = "run_folder/filtered/{data}_no_prefix.fam"
-    shell:
-        """
-        Rscript bin/remove_duplicates_prefix.R {input.mapped} {output.bed}
-        """
-
-rule remove_duplicates_position:
-    """
-    Remove conflicting ids and positions, choosing rs-ids first other taking the majority vote
-    """
-    input:
-        mapped = get_dup_input
-    output:
-        expand("run_folder/dedup/{data}{{suffix}}dedup.bed", data = config["datasets"]),
-        expand("run_folder/dedup/{data}{{suffix}}dedup.bim", data = config["datasets"]),
-        expand("run_folder/dedup/{data}{{suffix}}dedup.fam", data = config["datasets"])
-    shell:
-        """
-        Rscript bin/remove_duplicates_position.R {wildcards.suffix} {input.mapped}
-        """
+# rule remove_duplicate_name:
+#     """
+#     Remove prefix (exm- etc) and conflicting ids within individual files
+#     """
+#     input:
+#         mapped = "run_folder/mapped/{data}_mapped.bed"
+#     output:
+#         bed = "run_folder/filtered/{data}_no_prefix.bed",
+#         bim = "run_folder/filtered/{data}_no_prefix.bim",
+#         fam = "run_folder/filtered/{data}_no_prefix.fam"
+#     shell:
+#         """
+#         Rscript bin/remove_duplicates_prefix.R {input.mapped} {output.bed}
+#         """
+#
+# rule remove_duplicates_position:
+#     """
+#     Remove conflicting ids and positions, choosing rs-ids first other taking the majority vote
+#     """
+#     input:
+#         mapped = get_dup_input
+#     output:
+#         expand("run_folder/dedup/{data}{{suffix}}dedup.bed", data = config["datasets"]),
+#         expand("run_folder/dedup/{data}{{suffix}}dedup.bim", data = config["datasets"]),
+#         expand("run_folder/dedup/{data}{{suffix}}dedup.fam", data = config["datasets"])
+#     shell:
+#         """
+#         Rscript bin/remove_duplicates_position.R {wildcards.suffix} {input.mapped}
+#         """
 
 rule update_ref:
     """
     Update chromosome and position of ids given supplied dbsnp.map
     """
-    params:
-        dbsnp_map = config["dbsnp_map"],
-        dbsnp_chr = config["dbsnp_chr"],
-        plink     = config["plink"]
     input:
         get_ref_input
+    log:
+        "logs/{data}_update_ref.log"
     output:
-        bed = "run_folder/mapped/{data}_mapped.bed"
+        bed = "run_folder/mapped/{data}_mapped.bed",
+        fam = "run_folder/mapped/{data}_mapped.fam",
+        bim = "run_folder/mapped/{data}_mapped.bim"
     run:
         input_pattern = re.sub("\\.bed", "", input[0])
         output_pattern = re.sub("\\.bed", "", output.bed)
-        shell(f"{params.plink} --bfile {input_pattern} --update-chr {params.dbsnp_chr} --make-bed --out {output_pattern}_chr")
-        shell(f"{params.plink} --bfile {output_pattern}_chr --update-map {params.dbsnp_map} --make-bed --out {output_pattern}")
-        shell("rm {output_pattern}_chr.*")
+        strand_files = "data/update_build/InfiniumOmniExpressExome-8v1-3_A-b37-strand/InfiniumOmniExpressExome-8v1-3_A-b37.strand"
+        shell(f"bin/update_build.sh {input_pattern} {strand_files} {output_pattern} {wildcards.data} 2&> {log}")
 
 rule format_bed:
     """
@@ -173,4 +171,4 @@ rule format_bed:
     run:
         input_pattern = re.sub("\\.ped", "", input.ped)
         output_pattern = re.sub("\\.bed", "", output.bed)
-        shell(f"{params.plink} --file {input_pattern} --make-bed --out {output_pattern}")
+        shell(f"plink1.9 --file {input_pattern} --make-bed --out {output_pattern}")
