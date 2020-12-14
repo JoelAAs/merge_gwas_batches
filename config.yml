@@ -1,14 +1,33 @@
 ---
 ################ INPUT ################
 datasets:
-  - LI-0148_130513_ResultReport_PLINK_PCF_TOP
-  - ME-0286_140916_PLINK_PCF_TOP
-  - MW6_120228_ICF_Plink_top
-  - OK-0958_160913_PLINK_PCF_TOP
+  - LI-0148_130513_ResultReport_PLINK_PCF
+  - ME-0286_140916_PLINK_PCF
+  - MW6_120228_ICF_Plink
+  - OK-0958_160913_PLINK_PCF
+  - SJ-2328_200721_PLINK_PCF
+  - TwinGene
+
+manifest:
+  LI-0148_130513_ResultReport_PLINK_PCF:
+    "/home/joel/Documents/GWAS/joined/data/manifests/HumanOmni2.5Exome-8v1_A.csv"
+  ME-0286_140916_PLINK_PCF:
+    "/home/joel/Documents/GWAS/joined/data/manifests/HumanOmni2.5Exome-8v1_A.csv"
+  MW6_120228_ICF_Plink:
+    "/home/joel/Documents/GWAS/joined/data/manifests/HumanOmni2.5Exome-8v1_A.csv"
+  OK-0958_160913_PLINK_PCF:
+    "/home/joel/Documents/GWAS/joined/data/manifests/InfiniumOmniExpressExome-8v1-3_A.csv"
+  SJ-2328_200721_PLINK_PCF:
+    "/home/joel/Documents/GWAS/joined/data/manifests/GSAMD-24v3-0-EA_20034606_A1.csv"
+  TwinGene:
+    "/home/joel/Documents/GWAS/joined/data/manifests/GSAMD-24v3-0-EA_20034606_A1.csv"
+
+final_manifest:
+  "/home/joel/Documents/GWAS/joined/data/manifests/GSAMD-24v3-0-EA_20034606_A1.csv"
+
 ################ RESOURCES ################
-dbsnp_map: data/dbsnp138_pos.map
-dbsnp_chr: data/dbsnp138_chr.map
-fasta_ref: data/ucsc.hg19.fasta
+fasta_ref: data/ucsc.hg19.UPPERCASE.fasta
+
 ################ SOFTWARE ################
 
-plink: /home/joel/PLINK/plink
+plink: /home/joel/Documents/software/plink/plink2

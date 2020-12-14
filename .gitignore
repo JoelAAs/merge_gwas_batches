@@ -1,3 +1,6 @@
-data/*
-run_folder/*
-results/*
+*data*
+*run_folder*
+*results*
+*\.snakemake*
+*input*
+*log*
